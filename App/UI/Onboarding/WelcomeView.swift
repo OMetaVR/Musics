@@ -8,11 +8,14 @@ struct WelcomeView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 26) {
                 Spacer()
-                Image(systemName: "waveform").font(.system(size: 44, weight: .semibold)).foregroundStyle(Theme.accent)
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Musics").font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.inkHi)
-                    Text("A player for the music you host yourself: music.lan, Navidrome, or any Subsonic server.")
-                        .font(.system(size: 17)).foregroundStyle(Theme.ink2)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Your music,\nyour server.")
+                        .font(Typeface.condensed(56, .extraBold, relativeTo: .largeTitle))
+                        .foregroundStyle(Theme.paper)
+                        .lineSpacing(0)
+                        .minimumScaleFactor(0.6)
+                    Text("Musics plays the library you host yourself: music.lan, Navidrome, or any Subsonic server.")
+                        .font(.system(size: 17)).foregroundStyle(Theme.dust)
                 }
                 VStack(alignment: .leading, spacing: 14) {
                     point("network", "Home, Tailscale and public addresses in one server. The working one is picked automatically.")
@@ -22,7 +25,7 @@ struct WelcomeView: View {
                 }
                 Spacer()
                 NavigationLink { ServerEditorView(existing: nil) } label: {
-                    Text("Add a Server").frame(maxWidth: .infinity)
+                    Text("Add your server").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(FilledButtonStyle(primary: true))
             }
@@ -33,8 +36,8 @@ struct WelcomeView: View {
 
     private func point(_ icon: String, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon).font(.system(size: 17)).foregroundStyle(Theme.accent).frame(width: 24)
-            Text(text).font(.system(size: 15)).foregroundStyle(Theme.ink2)
+            Image(systemName: icon).font(.system(size: 17)).foregroundStyle(Theme.lan).frame(width: 24)
+            Text(text).font(.system(size: 15)).foregroundStyle(Theme.paper.opacity(0.85))
         }
     }
 }

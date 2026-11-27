@@ -103,7 +103,7 @@ final class ServerSession {
         switch status {
         case .connecting: return "Connecting…"
         case let .online(kind, latency):
-            let ms = latency.map { " · \(Int($0 * 1000)) ms" } ?? ""
+            let ms = latency.map { ", \(Int($0 * 1000)) ms" } ?? ""
             return "\(kind.displayName)\(ms)"
         case let .offline(reason): return reason.message
         }

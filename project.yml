@@ -66,6 +66,11 @@ targets:
           NSAllowsArbitraryLoads: true
         NSLocalNetworkUsageDescription: Musics connects to music servers on your local network and tailnet.
         LSApplicationQueriesSchemes: [tailscale]
+        UIAppFonts:
+          - BarlowSemiCondensed-Medium.ttf
+          - BarlowSemiCondensed-SemiBold.ttf
+          - BarlowSemiCondensed-Bold.ttf
+          - BarlowSemiCondensed-ExtraBold.ttf
 
 schemes:
   Musics:

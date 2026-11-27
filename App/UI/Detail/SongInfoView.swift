@@ -11,7 +11,7 @@ struct SongInfoView: View {
             List {
                 Section {
                     HStack(spacing: 14) {
-                        ArtworkView(url: model.artworkURL(track: track, size: 300), cornerRadius: 6).frame(width: 84, height: 84)
+                        ArtworkView(url: model.artworkURL(track: track, size: 300), cornerRadius: Theme.artRadius).frame(width: 84, height: 84)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(track.title).font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.inkHi)
                             Text(track.artistLine).foregroundStyle(Theme.ink2)
@@ -26,7 +26,7 @@ struct SongInfoView: View {
                     if track.year > 0 { row("Year", String(track.year)) }
                     row("Length", Format.time(track.duration))
                     if !track.genres.isEmpty { row("Genres", track.genres.map(\.capitalized).joined(separator: ", ")) }
-                    row("Format", [track.format.uppercased(), track.bitRate.map { "\($0) kbit/s" }].compactMap { $0 }.joined(separator: " · "))
+                    row("Format", [track.format.uppercased(), track.bitRate.map { "\($0) kbit/s" }].compactMap { $0 }.joined(separator: ", "))
                     if track.addedAt.timeIntervalSince1970 > 0 { row("Added", track.addedAt.formatted(date: .abbreviated, time: .omitted)) }
                 }
                 Section("You") {

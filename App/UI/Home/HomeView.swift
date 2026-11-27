@@ -9,8 +9,8 @@ struct HomeView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
-                    Color.clear.frame(height: 0).id("top")
+                VStack(alignment: .leading, spacing: 34) {
+                    header.id("top")
                     ConnectionBanner()
                     if model.library.isEmpty {
                         loadingOrEmpty
@@ -34,25 +34,50 @@ struct HomeView: View {
             }
             .onChange(of: model.scrollToTopToken[.home]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
         }
-        .background(Theme.bg)
-        .navigationTitle("Home")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { model.showSettings = true } label: {
-                    HStack(spacing: 6) {
-                        StatusDot()
-                        Image(systemName: "gearshape")
-                    }
+        .background(Theme.night)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    /// The page is titled with your server's name: this is your collection, not a storefront.
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.session?.profile.name ?? "Musics")
+                    .font(Typeface.condensed(40, .extraBold, relativeTo: .largeTitle))
+                    .foregroundStyle(Theme.paper)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                HStack(spacing: 7) {
+                    StatusDot()
+                    Text(statusLine).font(.system(size: 14)).foregroundStyle(Theme.dust).lineLimit(1)
                 }
-                .accessibilityLabel("Settings")
             }
+            Spacer()
+            Button { model.showSettings = true } label: {
+                Image(systemName: "gearshape").font(.system(size: 19, weight: .medium)).foregroundStyle(Theme.paper)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Settings")
+        }
+        .padding(.leading, Theme.gutter)
+        .padding(.trailing, 8)
+        .padding(.top, 6)
+    }
+
+    private var statusLine: String {
+        guard let session = model.session else { return "No server" }
+        let count = index.tracks.count
+        switch session.status {
+        case .online: return count > 0 ? "\(session.statusText), \(Format.songs(count))" : session.statusText
+        case .connecting: return "Connecting"
+        case .offline: return count > 0 ? "Offline, \(Format.songs(count)) cached" : "Offline"
         }
     }
 
     @ViewBuilder private var loadingOrEmpty: some View {
         if model.library.isRefreshing || model.session?.status == .connecting {
             VStack(spacing: 12) {
-                ProgressView().tint(Theme.accent)
+                ProgressView().tint(Theme.paper)
                 Text("Loading your library…").font(.system(size: 15)).foregroundStyle(Theme.ink3)
             }
             .frame(maxWidth: .infinity).padding(.top, 80)
@@ -69,7 +94,7 @@ struct HomeView: View {
     // MARK: Sections
 
     private var quickActions: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
             QuickTile(icon: "heart.fill", title: "Liked Songs", subtitle: Format.songs(model.library.likes.count)) { model.open(.liked) }
             QuickTile(icon: "shuffle", title: "Shuffle All", subtitle: Format.songs(index.snapshot.tracks.count)) {
                 model.play(index.snapshot.tracks, context: PlaybackContext(kind: .songs, title: "All songs"), shuffle: true)
@@ -200,13 +225,24 @@ struct HomeView: View {
         return index.artistsByName.filter { !$0.albumIDs.isEmpty }.sorted { $0.trackIDs.count > $1.trackIDs.count }.prefix(n).map { $0 }
     }
 
+    /// Your library's make-up at a glance: genre names sized by how many songs they hold.
     @ViewBuilder private var genres: some View {
-        let top = index.genres.prefix(8)
+        let top = Array(index.genres.prefix(28))
         if !top.isEmpty {
+            let maxCount = Double(top.first?.trackCount ?? 1)
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "Genres") { model.open(.genres) }
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(Array(top)) { g in GenreChip(genre: g) }
+                FlowLayout(spacing: 14, lineSpacing: 2) {
+                    ForEach(top) { g in
+                        let share = Double(g.trackCount) / maxCount
+                        Button { model.open(.genre(g.name)) } label: {
+                            Text(g.name)
+                                .font(Typeface.condensed(share > 0.45 ? 34 : share > 0.2 ? 26 : 20, share > 0.2 ? .extraBold : .bold))
+                                .foregroundStyle(share > 0.45 ? Theme.paper : share > 0.2 ? Theme.paper.opacity(0.8) : Theme.dust)
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel("\(g.name), \(Format.songs(g.trackCount))")
+                    }
                 }
                 .padding(.horizontal, Theme.gutter)
             }
@@ -257,19 +293,18 @@ struct QuickTile: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: icon).font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.accent)
-                    .frame(width: 36, height: 36).background(Theme.accentBg, in: RoundedRectangle(cornerRadius: 6))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-                    Text(subtitle).font(.system(size: 12)).foregroundStyle(Theme.ink3).lineLimit(1)
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: icon).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.lan)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(Typeface.condensed(20, .bold)).foregroundStyle(Theme.paper).lineLimit(1)
+                    Text(subtitle).font(.system(size: 13)).foregroundStyle(Theme.dust).lineLimit(1)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(8)
-            .cardBackground()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Theme.deck, in: RoundedRectangle(cornerRadius: Theme.panelRadius, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressStyle())
     }
 }
 
@@ -283,12 +318,12 @@ struct IconTile: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 ZStack {
-                    Theme.accentBg
-                    Image(systemName: icon).font(.system(size: 40)).foregroundStyle(Theme.accent)
+                    Theme.lanDeep
+                    Image(systemName: icon).font(.system(size: 40)).foregroundStyle(Theme.lan)
                 }
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.artRadius, style: .continuous))
+                Text(title).font(Typeface.cardTitle).foregroundStyle(Theme.paper).lineLimit(1)
             }
             .frame(width: width)
         }
@@ -305,12 +340,12 @@ struct StationTile: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 ZStack(alignment: .bottomLeading) {
-                    ArtworkView(url: artworkURL, cornerRadius: 6)
+                    ArtworkView(url: artworkURL, cornerRadius: Theme.artRadius)
                     Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.system(size: 13, weight: .bold)).foregroundStyle(Color.black)
-                        .padding(6).background(Theme.accent, in: Circle()).padding(8)
+                        .font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.night)
+                        .padding(7).background(Theme.paper, in: Circle()).padding(8)
                 }
-                Text(title).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                Text(title).font(Typeface.cardTitle).foregroundStyle(Theme.paper).lineLimit(1)
             }
             .frame(width: 140)
         }
@@ -325,16 +360,16 @@ struct GenreChip: View {
     var body: some View {
         Button { model.open(.genre(genre.name)) } label: {
             HStack(spacing: 10) {
-                ArtworkView(url: genre.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 128) }, cornerRadius: 4)
+                ArtworkView(url: genre.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 128) }, cornerRadius: Theme.artRadius)
                     .frame(width: 44, height: 44)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(genre.name.capitalized).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(genre.name).font(Typeface.condensed(18, .bold)).foregroundStyle(Theme.paper).lineLimit(1)
                     Text(Format.songs(genre.trackCount)).font(.system(size: 12)).foregroundStyle(Theme.ink3)
                 }
                 Spacer(minLength: 0)
             }
             .padding(6)
-            .cardBackground()
+            .background(Theme.deck, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -349,8 +384,8 @@ struct GenreTile: View {
         let genre = model.library.index.genres.first { $0.name == name }
         Button { model.open(.genre(name)) } label: {
             VStack(alignment: .leading, spacing: 6) {
-                ArtworkView(url: genre?.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 300) }, cornerRadius: 6)
-                Text(name.capitalized).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                ArtworkView(url: genre?.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 300) }, cornerRadius: Theme.artRadius)
+                Text(name).font(Typeface.cardTitle).foregroundStyle(Theme.paper).lineLimit(1)
             }
             .frame(width: width)
         }

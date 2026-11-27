@@ -71,26 +71,26 @@ struct TrackRow: View {
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button { model.player.playNext([track]) } label: { Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward") }
-                .tint(Theme.accentEdge)
+                .tint(Theme.lanDeep)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button { model.player.addToQueue([track]) } label: { Label("Add to Queue", systemImage: "text.append") }
-                .tint(Color(hex: "#3A4A5C")!)
+                .tint(Theme.deckHi)
         }
     }
 
     private var subtitle: String {
         if let subtitleOverride { return subtitleOverride }
-        return showAlbum ? "\(track.artistLine) · \(track.albumTitle)" : track.artistLine
+        return showAlbum ? "\(track.artistLine), \(track.albumTitle)" : track.artistLine
     }
 
     @ViewBuilder private var leadingView: some View {
         switch leading {
         case .artwork:
             ZStack {
-                ArtworkView(url: model.artworkURL(track: track, size: 128), cornerRadius: 4).frame(width: 46, height: 46)
+                ArtworkView(url: model.artworkURL(track: track, size: 128), cornerRadius: Theme.artRadius).frame(width: 46, height: 46)
                 if isCurrent {
-                    Color.black.opacity(0.45).clipShape(RoundedRectangle(cornerRadius: 4))
+                    Color.black.opacity(0.45).clipShape(RoundedRectangle(cornerRadius: Theme.artRadius))
                     PlayingBars(animating: model.player.isPlaying).frame(width: 16, height: 14)
                 }
             }
@@ -101,7 +101,7 @@ struct TrackRow: View {
                     PlayingBars(animating: model.player.isPlaying).frame(width: 14, height: 12)
                 } else {
                     Text(track.trackNumber > 0 ? "\(track.trackNumber)" : "–")
-                        .font(.system(size: 15, weight: .regular).monospacedDigit())
+                        .font(Typeface.condensed(17, .semibold).monospacedDigit())
                         .foregroundStyle(Theme.ink3)
                 }
             }
@@ -170,12 +170,11 @@ struct TrackPreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ArtworkView(url: model.artworkURL(track: track, size: 640), cornerRadius: 8).frame(width: 260, height: 260)
+            ArtworkView(url: model.artworkURL(track: track, size: 640), cornerRadius: Theme.artRadius).frame(width: 260, height: 260)
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title).font(.headline).foregroundStyle(Theme.inkHi).lineLimit(2)
+                Text(track.title).font(Typeface.condensed(22, .bold)).foregroundStyle(Theme.paper).lineLimit(2)
                 Text(track.artistLine).font(.subheadline).foregroundStyle(Theme.ink2).lineLimit(1)
-                Text([track.albumTitle, track.year > 0 ? String(track.year) : nil, Format.time(track.duration)]
-                    .compactMap { $0 }.joined(separator: " · "))
+                Text(Format.list([track.albumTitle, track.year > 0 ? String(track.year) : nil, Format.time(track.duration)]))
                     .font(.caption).foregroundStyle(Theme.ink3).lineLimit(1)
             }
         }

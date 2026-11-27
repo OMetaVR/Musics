@@ -111,7 +111,7 @@ struct ServerEditorView: View {
                             .foregroundStyle(r.reachable ? Theme.accent : Theme.danger)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(r.endpoint.url.absoluteString).font(.system(size: 14)).lineLimit(1)
-                            Text(r.reachable ? "\(r.kind.displayName) · \(Int((r.latency ?? 0) * 1000)) ms" : (r.error ?? "No answer"))
+                            Text(r.reachable ? "\(r.kind.displayName), \(Int((r.latency ?? 0) * 1000)) ms" : (r.error ?? "No answer"))
                                 .font(.system(size: 12)).foregroundStyle(Theme.ink3)
                         }
                     }
@@ -153,9 +153,9 @@ struct ServerEditorView: View {
 
     private func kindBadge(_ k: EndpointKind) -> some View {
         Text(k.displayName).font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(k == .tailscale ? Color.black : Theme.ink2)
+            .foregroundStyle(k == .tailscale ? Theme.night : Theme.dust)
             .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(k == .tailscale ? Theme.accent : Theme.cellHi, in: RoundedRectangle(cornerRadius: 4))
+            .background(k == .tailscale ? Theme.lan : Theme.deckHi, in: Capsule())
     }
 
     private func draft(kind: ServerKind) -> ServerProfile {

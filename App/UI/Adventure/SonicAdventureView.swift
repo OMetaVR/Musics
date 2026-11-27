@@ -67,7 +67,7 @@ struct SonicAdventureView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .tint(Theme.accent)
+        .tint(Theme.paper)
     }
 
     private func slotRow(_ slot: Slot, _ track: Track?) -> some View {
@@ -75,7 +75,7 @@ struct SonicAdventureView: View {
             HStack(spacing: 12) {
                 Text(slot == .start ? "From" : "To").font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink3).frame(width: 40, alignment: .leading)
                 if let track {
-                    ArtworkView(url: model.artworkURL(track: track, size: 128), cornerRadius: 4).frame(width: 40, height: 40)
+                    ArtworkView(url: model.artworkURL(track: track, size: 128), cornerRadius: Theme.artRadius).frame(width: 40, height: 40)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(track.title).foregroundStyle(Theme.ink).lineLimit(1)
                         Text(track.artistLine).font(.system(size: 13)).foregroundStyle(Theme.ink3).lineLimit(1)
@@ -136,7 +136,7 @@ struct TrackPicker: View {
                 ForEach(tracks) { t in
                     Button { onPick(t) } label: {
                         HStack(spacing: 12) {
-                            ArtworkView(url: model.artworkURL(track: t, size: 128), cornerRadius: 4).frame(width: 42, height: 42)
+                            ArtworkView(url: model.artworkURL(track: t, size: 128), cornerRadius: Theme.artRadius).frame(width: 42, height: 42)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(t.title).foregroundStyle(Theme.ink).lineLimit(1)
                                 Text(t.artistLine).font(.system(size: 13)).foregroundStyle(Theme.ink3).lineLimit(1)

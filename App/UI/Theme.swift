@@ -1,25 +1,88 @@
 import SwiftUI
+import UIKit
 
-/// music.lan's palette: solid near-black surfaces, quiet edges, one green accent.
+/// "The sleeve": a personal record collection. Graphite night, warm paper type, condensed headlines,
+/// and colour that comes from each album's artwork rather than a fixed accent.
 enum Theme {
-    static let bg = Color(hex: "#0A0A0B")!
-    static let panel = Color(hex: "#0F1012")!
-    static let cell = Color(hex: "#121316")!
-    static let cellHi = Color(hex: "#16171B")!
-    static let line = Color(hex: "#1E2024")!
-    static let edge = Color(hex: "#2A2D32")!
-    static let ink = Color(hex: "#E8E9EB")!
-    static let inkHi = Color(hex: "#F2F3F4")!
-    static let ink2 = Color(hex: "#A6A9AF")!
-    static let ink3 = Color(hex: "#80848C")!
-    static let accent = Color(hex: "#5CCB8A")!
-    static let accentBg = Color(hex: "#10291B")!
-    static let accentEdge = Color(hex: "#2B6B45")!
+    // Core palette.
+    /// Blue-graphite base: dark, but never black, so album tints read as colour rather than glow.
+    static let night = Color(hex: "#16181D")!
+    /// Raised surfaces: rows when pressed, panels, the tab bar.
+    static let deck = Color(hex: "#1F2229")!
+    static let deckHi = Color(hex: "#272A32")!
+    /// Rules and outlines.
+    static let groove = Color(hex: "#30343D")!
+    /// Primary text: warm off-white, like a printed sleeve.
+    static let paper = Color(hex: "#EEEAE2")!
+    static let dust = Color(hex: "#A29E95")!
+    static let ash = Color(hex: "#6E6B66")!
+    /// music.lan's green, used only for state: playing, liked, online, downloaded.
+    static let lan = Color(hex: "#6FD39A")!
+    static let lanDeep = Color(hex: "#1E3A2A")!
     static let danger = Color(hex: "#E5695F")!
-    static let nowPlayingFallback = Color(hex: "#28282C")!
+    /// Sleeve colour when an album has none.
+    static let sleeveFallback = Color(hex: "#2B2E36")!
 
-    static let radius: CGFloat = 8
-    static let gutter: CGFloat = 16
+    // Older names used across the app, mapped onto the palette.
+    static let bg = night
+    static let panel = deck
+    static let cell = deck
+    static let cellHi = deckHi
+    static let line = groove
+    static let edge = groove
+    static let ink = paper
+    static let inkHi = paper
+    static let ink2 = dust
+    static let ink3 = ash
+    static let accent = lan
+    static let accentBg = lanDeep
+    static let accentEdge = Color(hex: "#2F6B48")!
+    static let nowPlayingFallback = sleeveFallback
+
+    // Radii by role, not one radius for everything.
+    /// Artwork is a record sleeve: nearly square.
+    static let artRadius: CGFloat = 3
+    static let panelRadius: CGFloat = 14
+    static let radius: CGFloat = 10
+    static let gutter: CGFloat = 18
+}
+
+/// Barlow Semi Condensed (music.lan's face) for headlines; SF for everything read at length.
+enum Typeface {
+    enum Weight: String { case medium = "Medium", semibold = "SemiBold", bold = "Bold", extraBold = "ExtraBold" }
+
+    static func condensed(_ size: CGFloat, _ weight: Weight = .bold, relativeTo style: Font.TextStyle = .body) -> Font {
+        .custom("BarlowSemiCondensed-\(weight.rawValue)", size: size, relativeTo: style)
+    }
+
+    static func uiCondensed(_ size: CGFloat, _ weight: Weight) -> UIFont {
+        UIFont(name: "BarlowSemiCondensed-\(weight.rawValue)", size: size) ?? .systemFont(ofSize: size, weight: .bold)
+    }
+
+    // Scale (≈1.25): 13 · 15 · 17 · 21 · 26 · 34 · 44
+    static let screenTitle = condensed(34, .extraBold, relativeTo: .largeTitle)
+    static let sectionTitle = condensed(24, .bold, relativeTo: .title2)
+    static let cardTitle = condensed(17, .semibold, relativeTo: .headline)
+    static let label = condensed(15, .semibold, relativeTo: .subheadline)
+
+    /// Navigation bars in the house style, set once at launch.
+    static func applyAppearance() {
+        let nav = UINavigationBarAppearance()
+        nav.configureWithOpaqueBackground()
+        nav.backgroundColor = UIColor(Theme.night)
+        nav.shadowColor = .clear
+        nav.largeTitleTextAttributes = [.font: uiCondensed(34, .extraBold), .foregroundColor: UIColor(Theme.paper)]
+        nav.titleTextAttributes = [.font: uiCondensed(18, .bold), .foregroundColor: UIColor(Theme.paper)]
+        let plain = UIBarButtonItemAppearance()
+        plain.normal.titleTextAttributes = [.font: uiCondensed(17, .semibold), .foregroundColor: UIColor(Theme.paper)]
+        nav.buttonAppearance = plain
+        nav.backButtonAppearance = plain
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = nav
+        UINavigationBar.appearance().tintColor = UIColor(Theme.paper)
+        UISegmentedControl.appearance().selectedSegmentTintColor = UIColor(Theme.deckHi)
+    }
 }
 
 extension Color {
@@ -33,14 +96,12 @@ extension Color {
 }
 
 extension View {
-    /// Section title style used across Home and detail screens.
     func sectionTitle() -> some View {
-        font(.system(size: 20, weight: .bold)).foregroundStyle(Theme.inkHi)
+        font(Typeface.sectionTitle).foregroundStyle(Theme.paper)
     }
 
     func cardBackground() -> some View {
-        background(Theme.cell, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
+        background(Theme.deck, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
     }
 }
 
@@ -63,4 +124,9 @@ enum Format {
     }
 
     static func songs(_ n: Int) -> String { n == 1 ? "1 song" : "\(n.formatted()) songs" }
+
+    /// "2020, 12 songs, 43 min": plain commas rather than dot-separated meta strings.
+    static func list(_ parts: [String?]) -> String {
+        parts.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+    }
 }

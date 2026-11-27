@@ -15,7 +15,7 @@ struct RootView: View {
         }
         .background(Theme.bg.ignoresSafeArea())
         .preferredColorScheme(.dark)
-        .tint(Theme.accent)
+        .tint(Theme.paper)
         .task { await model.startup() }
         .onChange(of: phase) { _, new in
             switch new {
@@ -51,7 +51,10 @@ struct MainShell: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     if model.player.hasQueue {
-                        MiniPlayer().transition(.move(edge: .bottom))
+                        MiniPlayer()
+                            .padding(.horizontal, 8)
+                            .padding(.bottom, 4)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     TabBar()
                 }
@@ -113,32 +116,40 @@ struct RouteView: View {
     }
 }
 
+/// Text-only tabs in the condensed face. The active tab gets paper-coloured type and a short rule above it.
 struct TabBar: View {
     @Environment(AppModel.self) private var model
+    @Namespace private var marker
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases, id: \.self) { tab in
+                let active = model.tab == tab
                 Button { model.selectTab(tab) } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: model.tab == tab ? tab.icon + ".fill" : tab.icon)
-                            .font(.system(size: 20, weight: .medium))
-                            .frame(height: 24)
-                        Text(tab.title).font(.system(size: 10, weight: .medium))
+                    VStack(spacing: 7) {
+                        ZStack {
+                            if active {
+                                Capsule().fill(Theme.paper).frame(width: 22, height: 3)
+                                    .matchedGeometryEffect(id: "marker", in: marker)
+                            }
+                        }
+                        .frame(height: 3)
+                        Text(tab.title)
+                            .font(Typeface.condensed(18, active ? .bold : .semibold))
+                            .foregroundStyle(active ? Theme.paper : Theme.ash)
                     }
-                    .foregroundStyle(model.tab == tab ? Theme.accent : Theme.ink3)
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 7)
-                    .padding(.bottom, 3)
+                    .padding(.top, 2)
+                    .padding(.bottom, 8)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(tab.title)
-                .accessibilityAddTraits(model.tab == tab ? .isSelected : [])
+                .accessibilityAddTraits(active ? .isSelected : [])
             }
         }
-        .background(Theme.panel.ignoresSafeArea(edges: .bottom))
-        .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
+        .animation(.snappy(duration: 0.25), value: model.tab)
+        .background(Theme.night.ignoresSafeArea(edges: .bottom))
     }
 }
 
@@ -148,21 +159,22 @@ struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(toast.text).font(.system(size: 14)).foregroundStyle(Theme.ink).lineLimit(2)
+            Text(toast.text).font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.night).lineLimit(2)
             Spacer(minLength: 0)
             if let undo = toast.undo {
                 Button("Undo") {
                     undo()
                     model.toastItem = nil
                 }
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.accent)
+                .font(Typeface.condensed(16, .bold))
+                .foregroundStyle(Theme.night)
+                .underline()
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .background(Theme.cellHi, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.edge))
+        .background(Theme.paper, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .environment(\.colorScheme, .light)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.updatesFrequently)
     }

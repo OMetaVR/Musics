@@ -49,7 +49,7 @@ struct SettingsView: View {
                     }
                     Toggle("Download over Cellular", isOn: $settings.downloadOverCellular)
                     Toggle("Download Liked Songs", isOn: $settings.autoDownloadLiked)
-                    LabeledContent("Downloaded", value: "\(Format.songs(model.downloads.downloaded.count)) · \(Format.bytes(model.downloads.downloadedBytes))")
+                    LabeledContent("Downloaded", value: "\(Format.songs(model.downloads.downloaded.count)), \(Format.bytes(model.downloads.downloadedBytes))")
                     if settings.autoDownloadLiked {
                         Button("Download All Liked Songs Now") { model.download(model.library.likedTracks) }
                     }
@@ -102,7 +102,7 @@ struct SettingsView: View {
             } message: { Text("Downloads are kept.") }
         }
         .preferredColorScheme(.dark)
-        .tint(Theme.accent)
+        .tint(Theme.paper)
     }
 
     private var serversSection: some View {
@@ -118,7 +118,7 @@ struct SettingsView: View {
                                 .foregroundStyle(active ? Theme.accent : Theme.ink3)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(p.name).foregroundStyle(Theme.ink)
-                                Text(active ? (model.session?.statusText ?? "") : "\(p.kind.displayName) · \(p.endpoints.count) address\(p.endpoints.count == 1 ? "" : "es")")
+                                Text(active ? (model.session?.statusText ?? "") : "\(p.kind.displayName), \(p.endpoints.count) address\(p.endpoints.count == 1 ? "" : "es")")
                                     .font(.system(size: 12)).foregroundStyle(Theme.ink3)
                             }
                         }
@@ -153,7 +153,7 @@ struct ConnectionDetailView: View {
             }
             Section("This Phone") {
                 LabeledContent("Network", value: session.network.isConnected ? (session.network.isExpensive ? "Cellular / hotspot" : "Wi-Fi") : "Offline")
-                LabeledContent("Tailscale", value: NetworkInterfaces.tailscaleAddress().map { "Connected · \($0)" } ?? "Not connected")
+                LabeledContent("Tailscale", value: NetworkInterfaces.tailscaleAddress().map { "Connected, \($0)" } ?? "Not connected")
             }
             Section("Addresses") {
                 ForEach(session.resolution?.results ?? []) { r in
@@ -163,11 +163,11 @@ struct ConnectionDetailView: View {
                                 .foregroundStyle(r.reachable ? Theme.accent : Theme.ink3)
                             Text(r.endpoint.url.absoluteString).lineLimit(1)
                             if r.endpoint.id == session.resolution?.active?.endpoint.id {
-                                Text("In use").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.black)
-                                    .padding(.horizontal, 5).padding(.vertical, 1).background(Theme.accent, in: RoundedRectangle(cornerRadius: 3))
+                                Text("In use").font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.night)
+                                    .padding(.horizontal, 5).padding(.vertical, 1).background(Theme.lan, in: Capsule())
                             }
                         }
-                        Text(r.reachable ? "\(r.kind.displayName) · \(Int((r.latency ?? 0) * 1000)) ms" : "\(r.kind.displayName) · \(r.error ?? "No answer")")
+                        Text(r.reachable ? "\(r.kind.displayName), \(Int((r.latency ?? 0) * 1000)) ms" : "\(r.kind.displayName), \(r.error ?? "No answer")")
                             .font(.system(size: 12)).foregroundStyle(Theme.ink3)
                     }
                 }

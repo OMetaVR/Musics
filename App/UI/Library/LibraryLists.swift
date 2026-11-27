@@ -52,8 +52,8 @@ struct SongsView: View {
         switch sort {
         case .plays:
             let n = model.stats.stats.plays(t.id)
-            return "\(t.artistLine) · \(n) play\(n == 1 ? "" : "s")"
-        case .added: return "\(t.artistLine) · \(t.addedAt.formatted(date: .abbreviated, time: .omitted))"
+            return "\(t.artistLine), \(n) play\(n == 1 ? "" : "s")"
+        case .added: return "\(t.artistLine), \(t.addedAt.formatted(date: .abbreviated, time: .omitted))"
         default: return nil
         }
     }
@@ -92,7 +92,7 @@ struct SongsView: View {
 }
 
 func letterHeader(_ letter: String) -> some View {
-    Text(letter).font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.ink3).textCase(nil)
+    Text(letter).font(Typeface.condensed(19, .extraBold)).foregroundStyle(Theme.dust).textCase(nil)
         .frame(maxWidth: .infinity, alignment: .leading)
 }
 
@@ -112,7 +112,7 @@ struct AlbumsView: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 14)], alignment: .leading, spacing: 20) {
                 ForEach(albums) { a in
-                    AlbumTile(album: a, width: nil, subtitle: sort == .year && a.year > 0 ? "\(a.artist) · \(a.year)" : nil)
+                    AlbumTile(album: a, width: nil, subtitle: sort == .year && a.year > 0 ? "\(a.artist), \(a.year)" : nil)
                 }
             }
             .padding(Theme.gutter)
@@ -197,7 +197,7 @@ struct ArtistsView: View {
 
     private func artistSubtitle(_ a: Artist) -> String {
         let albums = a.albumIDs.count
-        return albums > 0 ? "\(albums) album\(albums == 1 ? "" : "s") · \(Format.songs(a.trackIDs.count))" : Format.songs(a.trackIDs.count)
+        return albums > 0 ? "\(albums) album\(albums == 1 ? "" : "s"), \(Format.songs(a.trackIDs.count))" : Format.songs(a.trackIDs.count)
     }
 }
 
@@ -304,7 +304,7 @@ struct DownloadsView: View {
             Section {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Format.songs(tracks.count)) · \(Format.bytes(model.downloads.downloadedBytes))")
+                        Text("\(Format.songs(tracks.count)), \(Format.bytes(model.downloads.downloadedBytes))")
                             .font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.ink)
                         Text("Smart cache: \(Format.bytes(model.downloads.cachedBytes)) of recently played and upcoming songs")
                             .font(.system(size: 12)).foregroundStyle(Theme.ink3)
@@ -355,7 +355,7 @@ struct HistoryView: View {
                 EmptyStateView(icon: "clock", title: "Nothing played yet", message: "Songs you listen to show up here.").bareRow()
             }
             ForEach(Array(tracks.enumerated()), id: \.element.id) { i, t in
-                TrackRow(track: t, subtitleOverride: "\(t.artistLine) · \(relative(stats.tracks[t.id]?.lastPlayed))") {
+                TrackRow(track: t, subtitleOverride: "\(t.artistLine), \(relative(stats.tracks[t.id]?.lastPlayed))") {
                     model.play(tracks, startAt: i, context: PlaybackContext(kind: .songs, title: "Recently Played"))
                 }
                 .plainRow()

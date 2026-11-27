@@ -1,52 +1,58 @@
 import AVKit
-import MediaPlayer
 import SwiftUI
 import MusicsCore
 
+/// The sleeve: artwork edge to edge, melting into the album's colour, with the title set large in the
+/// condensed face. Pausing dims the sleeve. Lyrics and Up next replace the artwork; the transport stays put.
 struct NowPlayingView: View {
     enum Pane { case artwork, lyrics, queue }
 
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var dragOffset: CGFloat
     @State private var pane: Pane = .artwork
-    @State private var computedAccent: Color?
+    @State private var sampled: Color?
 
     private var player: PlaybackController { model.player }
 
     var body: some View {
         let track = player.currentTrack
-        let bg = model.accentColor(albumID: track?.albumID) ?? computedAccent ?? Theme.nowPlayingFallback
+        let tint = model.accentColor(albumID: track?.albumID) ?? sampled ?? Theme.sleeveFallback
         GeometryReader { geo in
+            let top = geo.safeAreaInsets.top
+            let bottom = max(geo.safeAreaInsets.bottom, 14)
+            let width = geo.size.width
+            let fullHeight = geo.size.height + top + geo.safeAreaInsets.bottom
+            // Leave room for the title, scrubber, transport and tabs; crop the art on short phones.
+            let artHeight = min(width, max(fullHeight - 370, width * 0.7))
             VStack(spacing: 0) {
-                header(track)
-                    .contentShape(Rectangle())
-                    .gesture(dismissDrag)
-                Group {
-                    switch pane {
-                    case .artwork:
-                        artworkPane(track, width: geo.size.width)
-                            .contentShape(Rectangle())
-                            .gesture(dismissDrag)
-                    case .lyrics:
-                        compactHeader(track)
-                        if let track { LyricsView(track: track).id(track.id) }
-                    case .queue:
-                        compactHeader(track)
-                        QueueView()
+                if pane == .artwork {
+                    sleeve(track, tint: tint, width: width, height: artHeight, top: top)
+                    titleBlock(track)
+                        .padding(.horizontal, Theme.gutter)
+                        .padding(.top, 2)
+                        .contentShape(Rectangle())
+                        .gesture(dismissDrag)
+                    Spacer(minLength: 8)
+                } else {
+                    compactHeader(track, top: top)
+                    Group {
+                        if pane == .lyrics, let track { LyricsView(track: track).id(track.id) }
+                        if pane == .queue { QueueView() }
                     }
+                    .frame(maxHeight: .infinity)
                 }
-                .frame(maxHeight: .infinity)
                 controls(track)
-                    .padding(.bottom, max(geo.safeAreaInsets.bottom, 12))
+                    .padding(.bottom, bottom)
             }
-            .padding(.top, geo.safeAreaInsets.top)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(bg.ignoresSafeArea())
-            .background(Theme.bg.ignoresSafeArea())
+            .frame(width: width, height: fullHeight)
+            .background(tint)
             .ignoresSafeArea()
         }
-        .animation(.easeInOut(duration: 0.25), value: pane)
-        .task(id: track?.albumID) { await loadAccent(track) }
+        .background(tint.ignoresSafeArea())
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: tint)
+        .animation(.snappy(duration: 0.3), value: pane)
+        .task(id: track?.albumID) { sampled = await SleeveColor.sample(model, track) }
     }
 
     private var dismissDrag: some Gesture {
@@ -60,39 +66,119 @@ struct NowPlayingView: View {
             }
     }
 
-    private func loadAccent(_ track: Track?) async {
-        guard let track, model.accentColor(albumID: track.albumID) == nil, let url = model.artworkURL(track: track, size: 300),
-              let img = await ArtworkLoader.shared.image(for: url) else { return }
-        computedAccent = Color(uiColor: ArtworkLoader.shared.accentColor(for: url, image: img))
+    // MARK: Sleeve
+
+    @ViewBuilder private func sleeve(_ track: Track?, tint: Color, width: CGFloat, height: CGFloat, top: CGFloat) -> some View {
+        let playing = player.isPlaying
+        ZStack(alignment: .top) {
+            ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 640) }, cornerRadius: 0, placeholder: tint)
+                .frame(width: width, height: width)
+                .frame(width: width, height: height, alignment: .center)
+                .clipped()
+                // Paused: the sleeve goes quiet instead of shrinking.
+                .saturation(playing ? 1 : 0.3)
+                .brightness(playing ? 0 : -0.14)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.5), value: playing)
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [tint.opacity(0), tint], startPoint: .top, endPoint: .bottom).frame(height: height * 0.32)
+                }
+                .overlay(alignment: .top) {
+                    LinearGradient(colors: [.black.opacity(0.45), .black.opacity(0)], startPoint: .top, endPoint: .bottom).frame(height: top + 70)
+                }
+                .onTapGesture { if model.capabilities.contains(.lyrics) { pane = .lyrics } }
+                .accessibilityLabel(playing ? "Artwork" : "Artwork, paused")
+                .accessibilityHint("Shows lyrics")
+            topBar.padding(.top, top)
+        }
+        .frame(width: width, height: height)
+        .contentShape(Rectangle())
+        .gesture(dismissDrag)
     }
 
-    // MARK: Header
-
-    @ViewBuilder private func header(_ track: Track?) -> some View {
-        VStack(spacing: 6) {
-            Capsule().fill(Color.white.opacity(0.35)).frame(width: 38, height: 5).padding(.top, 8)
-            HStack {
-                Button { model.showPlayer = false } label: {
-                    Image(systemName: "chevron.down").font(.system(size: 18, weight: .semibold)).frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Close player")
-                Spacer()
-                VStack(spacing: 1) {
-                    if let ctx = player.queue.contextInfo {
-                        Text(contextLabel(ctx)).font(.system(size: 11, weight: .medium)).foregroundStyle(Color.white.opacity(0.65))
-                        Text(ctx.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+    private var topBar: some View {
+        HStack(alignment: .center) {
+            Button { model.showPlayer = false } label: {
+                Image(systemName: "chevron.down").font(.system(size: 18, weight: .bold)).frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("Close player")
+            Spacer(minLength: 8)
+            if let ctx = player.queue.contextInfo {
+                Button { openContext() } label: {
+                    VStack(spacing: 0) {
+                        Text(contextLabel(ctx)).font(.system(size: 12)).foregroundStyle(Theme.paper.opacity(0.7))
+                        Text(ctx.title).font(Typeface.condensed(16, .bold)).lineLimit(1)
                     }
                 }
-                .onTapGesture { openContext() }
-                Spacer()
-                Menu { moreMenu(track) } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 18, weight: .semibold)).frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("More")
+                .buttonStyle(.plain)
             }
-            .foregroundStyle(Color.white)
-            .padding(.horizontal, 8)
+            Spacer(minLength: 8)
+            Menu { moreMenu(player.currentTrack) } label: {
+                Image(systemName: "ellipsis").font(.system(size: 18, weight: .bold)).frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("More")
         }
+        .foregroundStyle(Theme.paper)
+        .padding(.horizontal, 8)
+    }
+
+    @ViewBuilder private func titleBlock(_ track: Track?) -> some View {
+        HStack(alignment: .bottom, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(track?.title ?? "")
+                    .font(Typeface.condensed(44, .extraBold, relativeTo: .largeTitle))
+                    .foregroundStyle(Theme.paper)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.5)
+                Button {
+                    if let a = track?.primaryArtist { model.open(.artist(TextNormalizer.key(a))) }
+                } label: {
+                    Text(track?.artistLine ?? "")
+                        .font(Typeface.condensed(21, .semibold))
+                        .foregroundStyle(Theme.paper.opacity(0.75))
+                        .lineLimit(1)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            likeButton(track)
+        }
+    }
+
+    @ViewBuilder private func likeButton(_ track: Track?) -> some View {
+        if let track {
+            let liked = model.library.isLiked(track.id)
+            Button { model.toggleLike(track) } label: {
+                Image(systemName: liked ? "heart.fill" : "heart")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(liked ? Theme.lan : Theme.paper.opacity(0.8))
+                    .frame(width: 44, height: 44)
+                    .symbolEffect(.bounce, value: liked)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(liked ? "Unlike" : "Like")
+        }
+    }
+
+    @ViewBuilder private func compactHeader(_ track: Track?, top: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            topBar
+            HStack(spacing: 12) {
+                ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 128) }, cornerRadius: Theme.artRadius)
+                    .frame(width: 52, height: 52)
+                    .onTapGesture { pane = .artwork }
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(track?.title ?? "").font(Typeface.condensed(24, .extraBold)).foregroundStyle(Theme.paper).lineLimit(1)
+                    Text(track?.artistLine ?? "").font(Typeface.condensed(17, .semibold)).foregroundStyle(Theme.paper.opacity(0.7)).lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                likeButton(track)
+            }
+            .padding(.horizontal, Theme.gutter)
+            .padding(.bottom, 8)
+        }
+        .padding(.top, top)
+        .contentShape(Rectangle())
+        .gesture(dismissDrag)
     }
 
     private func contextLabel(_ ctx: PlaybackContext) -> String {
@@ -101,12 +187,10 @@ struct NowPlayingView: View {
         case .playlist: return "Playing from playlist"
         case .artist: return "Playing from artist"
         case .genre: return "Playing from genre"
-        case .radio: return "Playing radio"
+        case .radio: return "Radio"
         case .adventure: return "Sonic Adventure"
-        case .liked: return "Playing from"
-        case .downloads: return "Playing from"
         case .search: return "Playing from search"
-        case .songs, .queue: return "Playing from"
+        case .liked, .downloads, .songs, .queue: return "Playing from"
         }
     }
 
@@ -136,89 +220,29 @@ struct NowPlayingView: View {
         }
     }
 
-    // MARK: Panes
-
-    @ViewBuilder private func artworkPane(_ track: Track?, width: CGFloat) -> some View {
-        let side = min(width - 48, 420)
-        VStack(spacing: 0) {
-            Spacer(minLength: 8)
-            ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 640) }, cornerRadius: 10, placeholder: Color.black.opacity(0.2))
-                .frame(width: side, height: side)
-                .shadow(color: .black.opacity(0.35), radius: player.isPlaying ? 24 : 10, y: 12)
-                .scaleEffect(player.isPlaying ? 1 : 0.86)
-                .animation(.spring(response: 0.45, dampingFraction: 0.72), value: player.isPlaying)
-                .onTapGesture { if track?.hasEmbeddedLyrics == true || model.capabilities.contains(.lyrics) { pane = .lyrics } }
-                .accessibilityLabel("Artwork. Double-tap for lyrics.")
-            Spacer(minLength: 16)
-            titleRow(track).padding(.horizontal, 24)
-        }
-    }
-
-    @ViewBuilder private func compactHeader(_ track: Track?) -> some View {
-        HStack(spacing: 12) {
-            ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 128) }, cornerRadius: 5).frame(width: 54, height: 54)
-                .onTapGesture { pane = .artwork }
-            titleRow(track)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-    }
-
-    @ViewBuilder private func titleRow(_ track: Track?) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(track?.title ?? "").font(.system(size: 21, weight: .bold)).foregroundStyle(.white).lineLimit(1)
-                Button {
-                    if let a = track?.primaryArtist { model.open(.artist(TextNormalizer.key(a))) }
-                } label: {
-                    Text(track?.artistLine ?? "").font(.system(size: 17)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
-                }
-                .buttonStyle(.plain)
-            }
-            Spacer(minLength: 8)
-            if let track {
-                let liked = model.library.isLiked(track.id)
-                Button { model.toggleLike(track) } label: {
-                    Image(systemName: liked ? "heart.fill" : "heart")
-                        .font(.system(size: 22))
-                        .foregroundStyle(liked ? Theme.accent : Color.white.opacity(0.85))
-                        .frame(width: 44, height: 44)
-                        .symbolEffect(.bounce, value: liked)
-                }
-                .accessibilityLabel(liked ? "Unlike" : "Like")
-            }
-        }
-    }
-
     // MARK: Controls
 
     @ViewBuilder private func controls(_ track: Track?) -> some View {
-        VStack(spacing: 14) {
-            if pane == .artwork { Color.clear.frame(height: 0) }
+        VStack(spacing: 16) {
             Scrubber(position: player.position, duration: player.duration) { player.seek(to: $0) }
-                .padding(.horizontal, 24)
-            HStack {
-                Button { player.setShuffle(!player.queue.shuffle) } label: {
-                    Image(systemName: "shuffle").font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(player.queue.shuffle ? Theme.accent : Color.white.opacity(0.6))
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Shuffle")
-                .accessibilityValue(player.queue.shuffle ? "On" : "Off")
+                .padding(.horizontal, Theme.gutter)
+            HStack(spacing: 0) {
+                modeButton("shuffle", on: player.queue.shuffle, label: "Shuffle") { player.setShuffle(!player.queue.shuffle) }
                 Spacer()
                 Button { player.previous() } label: {
-                    Image(systemName: "backward.fill").font(.system(size: 28)).frame(width: 60, height: 60)
+                    Image(systemName: "backward.end.fill").font(.system(size: 26)).frame(width: 60, height: 60)
                 }
                 .accessibilityLabel("Previous")
                 Spacer()
                 Button { player.togglePlay() } label: {
                     ZStack {
-                        Circle().fill(Color.white).frame(width: 72, height: 72)
+                        RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Theme.paper).frame(width: 80, height: 80)
                         if player.isBuffering {
-                            ProgressView().tint(.black)
+                            ProgressView().tint(Theme.night)
                         } else {
                             Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 30)).foregroundStyle(Color.black)
+                                .font(.system(size: 32))
+                                .foregroundStyle(Theme.night)
                                 .contentTransition(.symbolEffect(.replace))
                         }
                     }
@@ -226,59 +250,64 @@ struct NowPlayingView: View {
                 .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
                 Spacer()
                 Button { player.next() } label: {
-                    Image(systemName: "forward.fill").font(.system(size: 28)).frame(width: 60, height: 60)
+                    Image(systemName: "forward.end.fill").font(.system(size: 26)).frame(width: 60, height: 60)
                 }
                 .accessibilityLabel("Next")
                 Spacer()
-                Button { player.cycleRepeat() } label: {
-                    Image(systemName: player.queue.repeatMode == .one ? "repeat.1" : "repeat").font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(player.queue.repeatMode == .off ? Color.white.opacity(0.6) : Theme.accent)
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Repeat")
-                .accessibilityValue(player.queue.repeatMode.rawValue)
+                modeButton(player.queue.repeatMode == .one ? "repeat.1" : "repeat", on: player.queue.repeatMode != .off,
+                           label: "Repeat") { player.cycleRepeat() }
+                    .accessibilityValue(player.queue.repeatMode == .one ? "One" : player.queue.repeatMode == .all ? "All" : "Off")
             }
-            .foregroundStyle(Color.white)
-            .padding(.horizontal, 20)
+            .foregroundStyle(Theme.paper)
+            .padding(.horizontal, Theme.gutter - 4)
 
-            if pane == .artwork {
-                VolumeSlider().frame(height: 34).padding(.horizontal, 24)
-            }
-
-            HStack {
-                paneButton(.lyrics, icon: "quote.bubble", label: "Lyrics")
-                Spacer()
-                AirPlayButton().frame(width: 44, height: 44)
+            HStack(spacing: 22) {
+                paneTab(.lyrics, "Lyrics")
+                paneTab(.queue, "Up next")
                 Spacer()
                 if let remaining = player.sleepRemaining {
-                    Text(Format.time(remaining)).font(.system(size: 12, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.accent)
-                    Spacer()
+                    Label(Format.time(remaining), systemImage: "moon.zzz.fill")
+                        .font(.system(size: 13, weight: .medium).monospacedDigit())
+                        .foregroundStyle(Theme.paper.opacity(0.8))
                 } else if player.sleepTimer == .endOfTrack {
-                    Image(systemName: "moon.zzz.fill").foregroundStyle(Theme.accent)
-                    Spacer()
+                    Image(systemName: "moon.zzz.fill").foregroundStyle(Theme.paper.opacity(0.8))
+                        .accessibilityLabel("Stops after this song")
                 }
-                paneButton(.queue, icon: "list.bullet", label: "Queue")
+                AirPlayButton().frame(width: 36, height: 36)
             }
-            .padding(.horizontal, 36)
+            .padding(.horizontal, Theme.gutter)
         }
         .buttonStyle(.plain)
     }
 
-    private func paneButton(_ target: Pane, icon: String, label: String) -> some View {
-        Button { pane = pane == target ? .artwork : target } label: {
+    private func modeButton(_ icon: String, on: Bool, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(pane == target ? Color.black : Color.white.opacity(0.8))
-                .frame(width: 40, height: 34)
-                .background(pane == target ? Color.white.opacity(0.85) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(on ? Theme.night : Theme.paper.opacity(0.7))
+                .frame(width: 38, height: 38)
+                .background(on ? Theme.paper : Color.clear, in: Circle())
         }
         .accessibilityLabel(label)
-        .accessibilityAddTraits(pane == target ? .isSelected : [])
+        .accessibilityValue(on ? "On" : "Off")
+    }
+
+    private func paneTab(_ target: Pane, _ title: String) -> some View {
+        let active = pane == target
+        return Button { pane = active ? .artwork : target } label: {
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(Typeface.condensed(19, .bold))
+                    .foregroundStyle(active ? Theme.paper : Theme.paper.opacity(0.55))
+                Capsule().fill(active ? Theme.paper : Color.clear).frame(height: 2)
+            }
+            .fixedSize()
+        }
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }
 
-/// Follows the finger while dragging and seeks on release; thickens while held.
+/// A thin rule that follows the finger while dragging and seeks on release; it thickens while held.
 struct Scrubber: View {
     let position: Double
     let duration: Double
@@ -288,14 +317,13 @@ struct Scrubber: View {
     var body: some View {
         let shown = dragValue ?? position
         let fraction = duration > 0 ? min(max(shown / duration, 0), 1) : 0
-        VStack(spacing: 6) {
+        VStack(spacing: 7) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.22))
-                    Capsule().fill(Color.white.opacity(dragValue == nil ? 0.85 : 1))
-                        .frame(width: geo.size.width * fraction)
+                    Capsule().fill(Theme.paper.opacity(0.22))
+                    Capsule().fill(Theme.paper).frame(width: max(geo.size.width * fraction, 3))
                 }
-                .frame(height: dragValue == nil ? 5 : 9)
+                .frame(height: dragValue == nil ? 3 : 8)
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .gesture(
@@ -311,14 +339,14 @@ struct Scrubber: View {
                 )
                 .animation(.easeOut(duration: 0.15), value: dragValue == nil)
             }
-            .frame(height: 22)
+            .frame(height: 20)
             HStack {
                 Text(Format.time(shown))
                 Spacer()
                 Text("-" + Format.time(max(0, duration - shown)))
             }
-            .font(.system(size: 12, weight: .medium).monospacedDigit())
-            .foregroundStyle(Color.white.opacity(0.6))
+            .font(Typeface.condensed(15, .semibold).monospacedDigit())
+            .foregroundStyle(Theme.paper.opacity(dragValue == nil ? 0.6 : 0.95))
         }
         .accessibilityElement()
         .accessibilityLabel("Position")
@@ -333,22 +361,11 @@ struct Scrubber: View {
     }
 }
 
-struct VolumeSlider: UIViewRepresentable {
-    func makeUIView(context: Context) -> MPVolumeView {
-        let v = MPVolumeView(frame: .zero)
-        v.tintColor = .white
-        v.setVolumeThumbImage(UIImage(systemName: "circle.fill")?.withTintColor(.white, renderingMode: .alwaysOriginal), for: .normal)
-        return v
-    }
-
-    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
-}
-
 struct AirPlayButton: UIViewRepresentable {
     func makeUIView(context: Context) -> AVRoutePickerView {
         let v = AVRoutePickerView()
-        v.tintColor = UIColor.white.withAlphaComponent(0.8)
-        v.activeTintColor = UIColor(Theme.accent)
+        v.tintColor = UIColor(Theme.paper).withAlphaComponent(0.8)
+        v.activeTintColor = UIColor(Theme.lan)
         v.prioritizesVideoDevices = false
         return v
     }

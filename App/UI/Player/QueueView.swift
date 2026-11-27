@@ -24,7 +24,7 @@ struct QueueView: View {
                 Spacer()
                 if !q.upcoming.isEmpty {
                     Button("Clear") { player.clearUpcoming() }
-                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white.opacity(0.85))
+                        .font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.paper.opacity(0.85))
                 }
             }
             .padding(.horizontal, 20)
@@ -41,7 +41,7 @@ struct QueueView: View {
                             HStack {
                                 Text("History").queueHeader()
                                 Image(systemName: showHistory ? "chevron.up" : "chevron.down").font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(Color.white.opacity(0.6))
+                                    .foregroundStyle(Theme.paper.opacity(0.6))
                                 Spacer()
                             }
                         }
@@ -75,12 +75,12 @@ struct QueueView: View {
                     } header: {
                         HStack {
                             Text("Autoplay").queueHeader()
-                            Text("Similar songs").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.5))
+                            Text("Similar songs").font(.system(size: 12)).foregroundStyle(Theme.paper.opacity(0.5))
                         }
                     }
                 }
                 if q.upcoming.isEmpty && !player.isFetchingAutoplay {
-                    Text("Nothing up next.").font(.system(size: 15)).foregroundStyle(Color.white.opacity(0.5))
+                    Text("Nothing up next.").font(.system(size: 15)).foregroundStyle(Theme.paper.opacity(0.5))
                         .listRowBackground(Color.clear).listRowSeparator(.hidden)
                 }
             }
@@ -94,9 +94,9 @@ struct QueueView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(on ? Color.black : Color.white.opacity(0.85))
+                .foregroundStyle(on ? Theme.night : Theme.paper.opacity(0.85))
                 .frame(width: 46, height: 32)
-                .background(on ? Theme.accent : Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 7))
+                .background(on ? Theme.paper : Theme.paper.opacity(0.14), in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -107,14 +107,14 @@ struct QueueView: View {
         if let t = player.track(item) {
             Button { player.jump(to: item) } label: {
                 HStack(spacing: 12) {
-                    ArtworkView(url: model.artworkURL(track: t, size: 128), cornerRadius: 4).frame(width: 42, height: 42)
+                    ArtworkView(url: model.artworkURL(track: t, size: 128), cornerRadius: Theme.artRadius).frame(width: 42, height: 42)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(t.title).font(.system(size: 15)).foregroundStyle(.white).lineLimit(1)
-                        Text(t.artistLine).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1)
+                        Text(t.title).font(.system(size: 16)).foregroundStyle(Theme.paper).lineLimit(1)
+                        Text(t.artistLine).font(.system(size: 13)).foregroundStyle(Theme.paper.opacity(0.6)).lineLimit(1)
                     }
                     Spacer(minLength: 0)
                     if model.downloads.isAvailableOffline(t.id) {
-                        Image(systemName: "arrow.down.circle.fill").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.5))
+                        Image(systemName: "arrow.down.circle.fill").font(.system(size: 11)).foregroundStyle(Theme.paper.opacity(0.5))
                     }
                 }
                 .opacity(dim ? 0.55 : 1)
@@ -131,6 +131,6 @@ struct QueueView: View {
 
 private extension Text {
     func queueHeader() -> some View {
-        font(.system(size: 15, weight: .bold)).foregroundStyle(.white).textCase(nil)
+        font(Typeface.condensed(20, .bold)).foregroundStyle(Theme.paper).textCase(nil)
     }
 }

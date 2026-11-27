@@ -1,53 +1,68 @@
 import SwiftUI
 import MusicsCore
 
-/// Docked above the tab bar. Tap or swipe up opens Now Playing; swipe sideways to skip.
+/// A strip of the current sleeve floating above the tabs, in the album's colour. Tap or swipe up opens
+/// Now Playing; swipe sideways to skip.
 struct MiniPlayer: View {
     @Environment(AppModel.self) private var model
     @State private var dragX: CGFloat = 0
+    @State private var sampled: Color?
 
     var body: some View {
         let player = model.player
         let track = player.currentTrack
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 128) }, cornerRadius: 4)
-                    .frame(width: 42, height: 42)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(track?.title ?? "Not playing").font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.inkHi).lineLimit(1)
-                    Text(track?.artistLine ?? "").font(.system(size: 13)).foregroundStyle(Theme.ink3).lineLimit(1)
-                }
-                .offset(x: dragX * 0.6)
-                .opacity(1 - min(abs(dragX) / 160, 0.6))
-                Spacer(minLength: 4)
-                if player.isBuffering {
-                    ProgressView().controlSize(.small).tint(Theme.ink2).frame(width: 28)
-                }
-                Button { player.togglePlay() } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 22)).foregroundStyle(Theme.inkHi).frame(width: 44, height: 44)
-                }
-                .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
-                Button { player.next() } label: {
-                    Image(systemName: "forward.fill").font(.system(size: 18)).foregroundStyle(Theme.ink).frame(width: 40, height: 44)
-                }
-                .accessibilityLabel("Next")
+        let tint = model.accentColor(albumID: track?.albumID) ?? sampled ?? Theme.sleeveFallback
+        HStack(spacing: 12) {
+            ArtworkView(url: track.flatMap { model.artworkURL(track: $0, size: 128) }, cornerRadius: Theme.artRadius)
+                .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(track?.title ?? "Not playing")
+                    .font(Typeface.condensed(18, .bold))
+                    .foregroundStyle(Theme.paper)
+                    .lineLimit(1)
+                Text(track?.artistLine ?? "")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.paper.opacity(0.65))
+                    .lineLimit(1)
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 4)
-            .padding(.vertical, 6)
-            .buttonStyle(.plain)
-
+            .offset(x: dragX * 0.6)
+            .opacity(1 - min(abs(dragX) / 160, 0.6))
+            Spacer(minLength: 4)
+            Button { player.togglePlay() } label: {
+                ZStack {
+                    if player.isBuffering {
+                        ProgressView().tint(Theme.paper)
+                    } else {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Theme.paper)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                }
+                .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+            Button { player.next() } label: {
+                Image(systemName: "forward.fill").font(.system(size: 16)).foregroundStyle(Theme.paper.opacity(0.8))
+                    .frame(width: 36, height: 44)
+            }
+            .accessibilityLabel("Next")
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 8)
+        .padding(.trailing, 6)
+        .padding(.vertical, 7)
+        .background(tint)
+        .overlay(alignment: .bottom) {
             GeometryReader { geo in
-                Rectangle().fill(Theme.accent)
+                Rectangle().fill(Theme.paper)
                     .frame(width: geo.size.width * CGFloat(player.duration > 0 ? min(player.position / player.duration, 1) : 0))
             }
             .frame(height: 2)
-            .background(Theme.line)
+            .background(Theme.paper.opacity(0.18))
         }
-        .background(model.accentColor(albumID: track?.albumID).map { $0.opacity(0.55) } ?? Theme.cellHi)
-        .background(Theme.panel)
-        .overlay(alignment: .top) { Rectangle().fill(Theme.line).frame(height: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
         .contentShape(Rectangle())
         .onTapGesture { model.showPlayer = true }
         .gesture(
@@ -69,8 +84,21 @@ struct MiniPlayer: View {
                     }
                 }
         )
+        .animation(.easeInOut(duration: 0.4), value: track?.albumID)
+        .task(id: track?.albumID) { sampled = await SleeveColor.sample(model, track) }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Now playing: \(track?.title ?? ""), \(track?.artistLine ?? "")")
         .accessibilityAction(named: "Open player") { model.showPlayer = true }
+    }
+}
+
+/// The colour of a sleeve: the server's accent when it sends one, otherwise sampled from the artwork.
+enum SleeveColor {
+    @MainActor
+    static func sample(_ model: AppModel, _ track: Track?) async -> Color? {
+        guard let track, model.accentColor(albumID: track.albumID) == nil,
+              let url = model.artworkURL(track: track, size: 300),
+              let img = await ArtworkLoader.shared.image(for: url) else { return nil }
+        return Color(uiColor: ArtworkLoader.shared.accentColor(for: url, image: img))
     }
 }

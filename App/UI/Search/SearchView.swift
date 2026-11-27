@@ -100,25 +100,29 @@ struct SearchView: View {
                 .padding(.horizontal, Theme.gutter)
                 .padding(.vertical, 8)
                 .bareRow()
-            } header: { header("Browse Genres") }
+            } header: { header("Browse genres") }
         }
     }
 
     private func header(_ text: String) -> some View {
-        Text(text).font(.system(size: 18, weight: .bold)).foregroundStyle(Theme.inkHi).textCase(nil)
+        Text(text).sectionTitle().textCase(nil)
     }
 
     private var scopePicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: 20) {
                 ForEach(Scope.allCases, id: \.self) { s in
                     Button { scope = s } label: {
-                        Text(s.rawValue).font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(scope == s ? Color.black : Theme.ink)
-                            .padding(.horizontal, 14).padding(.vertical, 7)
-                            .background(scope == s ? Theme.accent : Theme.cellHi, in: Capsule())
+                        VStack(spacing: 4) {
+                            Text(s.rawValue)
+                                .font(Typeface.condensed(19, .bold))
+                                .foregroundStyle(scope == s ? Theme.paper : Theme.ash)
+                            Capsule().fill(scope == s ? Theme.paper : Color.clear).frame(height: 2)
+                        }
+                        .fixedSize()
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(scope == s ? .isSelected : [])
                 }
             }
             .padding(.horizontal, Theme.gutter)
@@ -136,7 +140,7 @@ struct SearchView: View {
                 .bareRow()
         }
         if scope == .all, let top = r.top {
-            Section { topResult(top).bareRow() } header: { header("Top Result") }
+            Section { topResult(top).bareRow() } header: { header("Top result") }
         }
         if (scope == .all || scope == .songs), !tracks.isEmpty {
             Section {
@@ -181,7 +185,7 @@ struct SearchView: View {
                         ForEach(albums) { a in
                             Button { model.open(.album(a.id)) } label: {
                                 CollectionRow(artworkURL: model.artworkURL(album: a, size: 128), title: a.title,
-                                              subtitle: "\(a.artist)\(a.year > 0 ? " · \(a.year)" : "")")
+                                              subtitle: "\(a.artist)\(a.year > 0 ? ", \(a.year)" : "")")
                             }
                             .buttonStyle(.plain).plainRow(top: 6, bottom: 6)
                         }
@@ -207,7 +211,7 @@ struct SearchView: View {
                 ForEach(r.genres, id: \.self) { g in
                     Button { model.open(.genre(g)) } label: {
                         CollectionRow(artworkURL: index.genres.first { $0.name == g }?.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 128) },
-                                      title: g.capitalized, subtitle: "Genre")
+                                      title: g, subtitle: "Genre")
                     }
                     .buttonStyle(.plain).plainRow(top: 6, bottom: 6)
                 }
@@ -239,7 +243,7 @@ struct SearchView: View {
 
     private var semanticHeader: some View {
         VStack(alignment: .leading, spacing: 2) {
-            header("Sounds Like “\(query)”")
+            header("Sounds like “\(query)”")
             Text("Matched by listening to the audio, not the tags.").font(.system(size: 12)).foregroundStyle(Theme.ink3).textCase(nil)
         }
     }
@@ -254,20 +258,20 @@ struct SearchView: View {
             switch top {
             case let .track(id):
                 if let t = index.tracks[id] {
-                    topCard(url: model.artworkURL(track: t, size: 300), title: t.title, subtitle: "Song · \(t.artistLine)", round: false) {
+                    topCard(url: model.artworkURL(track: t, size: 300), title: t.title, subtitle: "Song by \(t.artistLine)", round: false) {
                         playSearch(index.tracks(results?.tracks ?? [id]), at: max(0, results?.tracks.firstIndex(of: id) ?? 0))
                     }
                 }
             case let .album(id):
                 if let a = index.albums[id] {
-                    topCard(url: model.artworkURL(album: a, size: 300), title: a.title, subtitle: "Album · \(a.artist)", round: false) {
+                    topCard(url: model.artworkURL(album: a, size: 300), title: a.title, subtitle: "Album by \(a.artist)", round: false) {
                         model.open(.album(id))
                     }
                 }
             case let .artist(id):
                 if let a = index.artists[id] {
                     topCard(url: a.albumIDs.first.flatMap { model.artworkURL(albumID: $0, size: 300) }, title: a.name,
-                            subtitle: "Artist · \(Format.songs(a.trackIDs.count))", round: true) { model.open(.artist(id)) }
+                            subtitle: "Artist, \(Format.songs(a.trackIDs.count))", round: true) { model.open(.artist(id)) }
                 }
             case let .playlist(id):
                 if let p = index.playlists[id] {
@@ -277,7 +281,7 @@ struct SearchView: View {
                 }
             case let .genre(name):
                 topCard(url: index.genres.first { $0.name == name }?.coverAlbumID.flatMap { model.artworkURL(albumID: $0, size: 300) },
-                        title: name.capitalized, subtitle: "Genre", round: false) { model.open(.genre(name)) }
+                        title: name, subtitle: "Genre", round: false) { model.open(.genre(name)) }
             }
         }
         .padding(.horizontal, Theme.gutter)
@@ -287,15 +291,15 @@ struct SearchView: View {
     private func topCard(url: URL?, title: String, subtitle: String, round: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                ArtworkView(url: url, cornerRadius: round ? 40 : 6).frame(width: 80, height: 80)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.system(size: 20, weight: .bold)).foregroundStyle(Theme.inkHi).lineLimit(2)
+                ArtworkView(url: url, cornerRadius: round ? 44 : Theme.artRadius).frame(width: 88, height: 88)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(Typeface.condensed(28, .extraBold)).foregroundStyle(Theme.paper).lineLimit(2).minimumScaleFactor(0.7)
                     Text(subtitle).font(.system(size: 14)).foregroundStyle(Theme.ink3).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             .padding(12)
-            .cardBackground()
+            .background(Theme.deck, in: RoundedRectangle(cornerRadius: Theme.panelRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }

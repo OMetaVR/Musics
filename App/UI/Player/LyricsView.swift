@@ -29,7 +29,7 @@ struct LyricsView: View {
     }
 
     private func message(_ text: String) -> some View {
-        Text(text).font(.system(size: 17, weight: .medium)).foregroundStyle(Color.white.opacity(0.6))
+        Text(text).font(Typeface.condensed(22, .bold)).foregroundStyle(Theme.paper.opacity(0.6))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -54,7 +54,7 @@ struct LyricsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(lyrics.lines) { line in
-                    Text(line.text).font(.system(size: 22, weight: .semibold)).foregroundStyle(Color.white.opacity(0.85))
+                    Text(line.text).font(Typeface.condensed(24, .bold)).foregroundStyle(Theme.paper.opacity(0.85))
                 }
                 source(lyrics)
             }
@@ -65,13 +65,13 @@ struct LyricsView: View {
 
     private func source(_ lyrics: Lyrics) -> some View {
         Text(lyrics.source.map { "Lyrics from \($0)" } ?? "")
-            .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.4)).padding(.top, 20)
+            .font(.system(size: 12)).foregroundStyle(Theme.paper.opacity(0.4)).padding(.top, 20)
     }
 
     private func synced(_ lyrics: Lyrics) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
+                LazyVStack(alignment: .leading, spacing: 14) {
                     Color.clear.frame(height: 40)
                     ForEach(lyrics.lines) { line in
                         LyricLine(lyrics: lyrics, line: line, isActive: line.id == active, isPast: (active ?? -1) > line.id)
@@ -85,7 +85,7 @@ struct LyricsView: View {
                     source(lyrics)
                     Color.clear.frame(height: 200)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Theme.gutter)
             }
             .simultaneousGesture(DragGesture(minimumDistance: 5).onChanged { _ in userScrolledAt = Date() })
             .background {
@@ -116,21 +116,21 @@ struct LyricLine: View {
     var body: some View {
         Group {
             if line.isInstrumentalGap {
-                Text("♪").font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(isActive ? 0.9 : 0.35))
+                Text("♪").font(Typeface.condensed(32, .extraBold, relativeTo: .title))
+                    .foregroundStyle(Theme.paper.opacity(isActive ? 0.9 : 0.35))
             } else if isActive, lyrics.kind == .word, !line.words.isEmpty {
                 // Karaoke: sung words bright, the rest dim. Only the active line re-renders on the timeline.
                 TimelineView(.animation(minimumInterval: 1 / 30)) { _ in
                     let t = model.player.engine.currentTime + 0.05
                     line.words.reduce(Text("")) { acc, w in
-                        acc + Text(w.text).foregroundColor(t >= w.start ? Color.white : Color.white.opacity(0.4))
+                        acc + Text(w.text).foregroundColor(t >= w.start ? Theme.paper : Theme.paper.opacity(0.4))
                     }
-                    .font(.system(size: 28, weight: .bold))
+                    .font(Typeface.condensed(32, .extraBold, relativeTo: .title))
                 }
             } else {
                 Text(line.text)
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(isActive ? 1 : isPast ? 0.45 : 0.35))
+                    .font(Typeface.condensed(32, .extraBold, relativeTo: .title))
+                    .foregroundStyle(Theme.paper.opacity(isActive ? 1 : isPast ? 0.45 : 0.35))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -115,12 +115,14 @@ struct ArtworkView: View {
             if let image {
                 Image(uiImage: image).resizable().scaledToFill().transition(.opacity)
             } else {
-                Image(systemName: "music.note").font(.system(size: 18, weight: .medium)).foregroundStyle(Theme.ink3)
+                Image(systemName: "music.note").font(.system(size: 18, weight: .medium)).foregroundStyle(Theme.paper.opacity(0.25))
             }
         }
         .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(Theme.line.opacity(0.7), lineWidth: 0.5))
+        // A hairline keeps dark covers from dissolving into the page; full-bleed sleeves don't need it.
+        .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .strokeBorder(Color.white.opacity(cornerRadius > 0 ? 0.06 : 0), lineWidth: 0.5))
         .task(id: url) {
             guard let url else { image = nil; return }
             if let hit = ArtworkLoader.shared.cached(url) { image = hit; return }

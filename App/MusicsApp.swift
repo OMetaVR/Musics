@@ -4,6 +4,10 @@ import SwiftUI
 struct MusicsApp: App {
     @State private var model = AppModel()
 
+    init() {
+        Typeface.applyAppearance()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

@@ -16,9 +16,9 @@ struct LibraryView: View {
                     row(.albums, "square.stack", "Albums", index.albums.count)
                     row(.songs, "music.note", "Songs", index.tracks.count)
                     row(.genres, "guitars", "Genres", index.genres.count)
-                    row(.liked, "heart", "Liked Songs", model.library.likes.count)
+                    row(.liked, "heart", "Liked songs", model.library.likes.count)
                     row(.downloads, "arrow.down.circle", "Downloaded", model.downloads.downloaded.count)
-                    row(.history, "clock.arrow.circlepath", "Recently Played", nil)
+                    row(.history, "clock.arrow.circlepath", "Recently played", nil)
                 }
                 if !index.albumsByAdded.isEmpty {
                     Section {
@@ -30,9 +30,9 @@ struct LibraryView: View {
                         .bareRow()
                     } header: {
                         HStack {
-                            Text("Recently Added").font(.system(size: 20, weight: .bold)).foregroundStyle(Theme.inkHi)
+                            Text("Recently added").sectionTitle()
                             Spacer()
-                            Button("See All") { model.open(.recentlyAdded) }.font(.system(size: 15)).foregroundStyle(Theme.accent)
+                            Button("See all") { model.open(.recentlyAdded) }.font(.system(size: 15)).foregroundStyle(Theme.dust)
                         }
                         .textCase(nil)
                     }
@@ -54,19 +54,27 @@ struct LibraryView: View {
         }
     }
 
+    /// The library as an index: each part of the collection set large, with its size beside it.
     private func row(_ route: Route, _ icon: String, _ title: String, _ count: Int?) -> some View {
         Button { model.open(route) } label: {
-            HStack(spacing: 14) {
-                Image(systemName: icon).font(.system(size: 18)).foregroundStyle(Theme.accent).frame(width: 28)
-                Text(title).font(.system(size: 17)).foregroundStyle(Theme.ink)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(title)
+                    .font(Typeface.condensed(34, .extraBold, relativeTo: .title))
+                    .foregroundStyle(Theme.paper)
                 Spacer()
-                if let count { Text(count.formatted()).font(.system(size: 15)).foregroundStyle(Theme.ink3) }
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.edge)
+                if let count {
+                    Text(count.formatted())
+                        .font(Typeface.condensed(19, .semibold).monospacedDigit())
+                        .foregroundStyle(Theme.dust)
+                }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .plainRow(top: 12, bottom: 12)
+        .listRowInsets(EdgeInsets(top: 6, leading: Theme.gutter, bottom: 6, trailing: Theme.gutter))
+        .listRowBackground(Theme.night)
+        .listRowSeparatorTint(Theme.groove)
+        .accessibilityLabel(count.map { "\(title), \($0)" } ?? title)
     }
 }
 
@@ -80,7 +88,7 @@ struct SectionIndexBar: View {
         GeometryReader { geo in
             VStack(spacing: 0) {
                 ForEach(letters, id: \.self) { l in
-                    Text(l).font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.accent)
+                    Text(l).font(Typeface.condensed(12, .bold)).foregroundStyle(Theme.dust)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
