@@ -61,15 +61,22 @@ final class LibraryStore {
             }
             let provider = session.provider
             let url = cacheURL(id)
-            let built = try await Task.detached(priority: .userInitiated) {
+            let (built, saveURL) = try await Task.detached(priority: .userInitiated) {
                 let snap = try await provider.fetchLibrary(base: base)
-                Store.save(snap, to: url)
-                return LibraryIndex(snap)
+                return (LibraryIndex(snap), url)
             }.value
             guard serverID == id else { return }
+            // A server whose music drive is unmounted reports an empty library. Keep the songs we
+            // already know about (downloads and the smart cache still play) instead of wiping them.
+            if built.snapshot.tracks.isEmpty, !isEmpty {
+                lastError = "\(session.profile.name) reports an empty library, so its music drive may be unmounted. Showing the last library this phone saw."
+                return
+            }
             apply(built)
             isLoaded = true
             lastError = nil
+            let snapshot = built.snapshot
+            Task.detached(priority: .utility) { Store.save(snapshot, to: saveURL) }
         } catch {
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             session.reportFailure()

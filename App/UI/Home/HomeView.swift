@@ -12,6 +12,16 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 34) {
                     header.id("top")
                     ConnectionBanner()
+                    if !model.library.isEmpty, let problem = model.library.lastError {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "externaldrive.badge.exclamationmark").foregroundStyle(Theme.dust)
+                            Text(problem).font(.system(size: 14)).foregroundStyle(Theme.paper.opacity(0.85))
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.deck, in: RoundedRectangle(cornerRadius: Theme.panelRadius, style: .continuous))
+                        .padding(.horizontal, Theme.gutter)
+                    }
                     if model.library.isEmpty {
                         loadingOrEmpty
                     } else {
